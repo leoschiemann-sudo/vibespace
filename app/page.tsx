@@ -2,30 +2,120 @@
 
 import { useState, useEffect } from "react";
 import { ProfileData, DEFAULT_PROFILE_DATA } from "@/lib/types";
-import { loadProfileFromStorage, saveProfileToStorage } from "@/lib/storage";
+import {
+  loadProfileFromStorage,
+  saveProfileToStorage,
+  saveProfileId,
+  loadProfileId,
+  saveProfilePassword,
+  loadProfilePassword,
+  createProfileOnServer,
+  saveProfileToServer,
+  loadProfileFromServer,
+} from "@/lib/storage";
 import { EditorForm } from "@/components/EditorForm";
 import { ProfilePreview } from "@/components/ProfilePreview";
 import { ShareButton } from "@/components/ShareButton";
-import { Smartphone, Edit3 } from "lucide-react";
+import { Smartphone, Edit3, Lock, Unlock } from "lucide-react";
 
 export default function HomePage() {
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE_DATA);
   const [isLoading, setIsLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
 
-  // Load profile from localStorage on mount
+  // Load profile from server on mount
   useEffect(() => {
-    const stored = loadProfileFromStorage();
-    setProfile(stored);
-    setIsLoading(false);
+    const loadProfile = async () => {
+      const storedId = loadProfileId();
+      const storedPassword = loadProfilePassword();
+
+      if (storedId) {
+        setProfileId(storedId);
+        const result = await loadProfileFromServer(storedId, storedPassword || undefined);
+        if (result.success && result.profile) {
+          setProfile(result.profile);
+          if (storedPassword) {
+            setPassword(storedPassword);
+          }
+        }
+      } else {
+        // Fallback to localStorage for migration
+        const stored = loadProfileFromStorage();
+        setProfile(stored);
+      }
+      setIsLoading(false);
+    };
+
+    loadProfile();
   }, []);
 
-  // Save to localStorage whenever profile changes
+  // Save to server whenever profile changes
   useEffect(() => {
-    if (!isLoading) {
-      saveProfileToStorage(profile);
+    if (isLoading) return;
+
+    const saveProfile = async () => {
+      if (profileId) {
+        // Update existing profile on server
+        const result = await saveProfileToServer(profileId, profile, password || undefined);
+        if (!result.success) {
+          console.error("Failed to save to server:", result.error);
+          // Fallback to localStorage
+          saveProfileToStorage(profile);
+        }
+      } else {
+        // Save to localStorage as fallback
+        saveProfileToStorage(profile);
+      }
+    };
+
+    saveProfile();
+  }, [profile, isLoading, profileId, password]);
+
+  // Create new profile on server
+  const handleCreateProfile = async (pwd: string) => {
+    const result = await createProfileOnServer(profile, pwd || undefined);
+    if (result.success && result.profile) {
+      setProfileId(result.profile.id);
+      saveProfileId(result.profile.id);
+      if (pwd) {
+        setPassword(pwd);
+        saveProfilePassword(pwd);
+      }
+      setShowPasswordPrompt(false);
+      setPasswordError("");
+    } else {
+      setPasswordError(result.error || "Failed to create profile");
     }
-  }, [profile, isLoading]);
+  };
+
+  // Save current profile to server
+  const handleSaveToServer = async () => {
+    if (!profileId) {
+      // Create new profile if no ID exists
+      setShowPasswordPrompt(true);
+      return;
+    }
+
+    const result = await saveProfileToServer(profileId, profile, password || undefined);
+    if (result.success) {
+      // Profile saved successfully
+    } else {
+      setPasswordError(result.error || "Failed to save");
+    }
+  };
+
+  // Handle password submission for saving
+  const handlePasswordSubmit = () => {
+    if (profileId) {
+      handleSaveToServer();
+    } else {
+      handleCreateProfile(password);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -44,23 +134,34 @@ export default function HomePage() {
             VibeSpace
           </h1>
           
-          {/* Mobile preview toggle */}
-          <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="lg:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-full text-sm text-gray-700 dark:text-gray-300"
-          >
-            {showPreview ? (
-              <>
-                <Edit3 className="w-4 h-4" />
-                <span>Bearbeiten</span>
-              </>
-            ) : (
-              <>
-                <Smartphone className="w-4 h-4" />
-                <span>Vorschau</span>
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Save to Server button */}
+            <button
+              onClick={() => setShowPasswordPrompt(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white font-medium rounded-full hover:opacity-90 transition-opacity text-sm"
+            >
+              {profileId ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+              <span>{profileId ? "Gespeichert" : "Speichern"}</span>
+            </button>
+            
+            {/* Mobile preview toggle */}
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className="lg:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-full text-sm text-gray-700 dark:text-gray-300"
+            >
+              {showPreview ? (
+                <>
+                  <Edit3 className="w-4 h-4" />
+                  <span>Bearbeiten</span>
+                </>
+              ) : (
+                <>
+                  <Smartphone className="w-4 h-4" />
+                  <span>Vorschau</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -103,6 +204,47 @@ export default function HomePage() {
           </div>
         )}
       </div>
+
+      {/* Password Prompt Modal */}
+      {showPasswordPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {profileId ? "Profil aktualisieren" : "Profil erstellen"}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Optional: Legen Sie ein Passwort fest, um Ihr Profil zu schützen.
+            </p>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Passwort (optional)"
+              className="w-full px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+            />
+            {passwordError && (
+              <p className="text-red-500 text-sm mb-4">{passwordError}</p>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPasswordPrompt(false);
+                  setPasswordError("");
+                }}
+                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handlePasswordSubmit}
+                className="flex-1 px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 text-white font-medium hover:opacity-90 transition-opacity"
+              >
+                {profileId ? "Aktualisieren" : "Erstellen"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

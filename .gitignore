@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Profile data (sensitive user information)
+app/data/profiles/*.json
+!app/data/profiles/.gitkeep
