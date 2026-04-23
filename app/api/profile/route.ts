@@ -62,12 +62,12 @@ export async function POST(request: NextRequest) {
       updatedAt: now,
     };
 
-    const result = await sanityClient.create(doc);
+    const result = await sanityClient.create(doc) as unknown as SanityProfile;
 
     return NextResponse.json({
       success: true,
       profile: {
-        ...sanityToProfileData(result as SanityProfile),
+        ...sanityToProfileData(result),
         id: result._id,
         createdAt: now,
         updatedAt: now,

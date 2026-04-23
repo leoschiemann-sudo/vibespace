@@ -163,12 +163,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       updates.passwordHash = await hashPassword(body.password);
     }
 
-    const result = await sanityClient.patch(id).set(updates).commit();
+    const result = await sanityClient.patch(id).set(updates).commit() as unknown as SanityProfile;
 
     return NextResponse.json({
       success: true,
       profile: {
-        ...sanityToProfileData(result as SanityProfile),
+        ...sanityToProfileData(result),
         id: result._id,
         createdAt: existing.createdAt,
         updatedAt: now,
