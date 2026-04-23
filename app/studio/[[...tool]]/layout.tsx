@@ -1,9 +1,4 @@
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "VibeSpace Studio",
-  description: "Admin interface for VibeSpace profiles",
-};
+"use client";
 
 export default function StudioLayout({
   children,
