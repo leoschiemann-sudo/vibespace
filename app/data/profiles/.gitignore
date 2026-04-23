@@ -1,3 +1,0 @@
-# Profile data - contains sensitive user information
-*.json
-!.gitkeep

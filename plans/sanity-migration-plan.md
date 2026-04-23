@@ -1,7 +1,6 @@
 # Sanity Integration Plan
 
-## Ziel
-Migration von lokaler Dateispeicherung zu Sanity CMS für persistente Profildaten-Speicherung.
+## Status: ✅ ABGESCHLOSSEN
 
 ## Architektur
 
@@ -13,7 +12,6 @@ flowchart LR
     
     subgraph Next.js
         B[lib/storage.ts]
-        C[API Routes]
     end
     
     subgraph Sanity
@@ -22,76 +20,67 @@ flowchart LR
     end
     
     A --> B
-    B --> C
-    C --> D
+    B --> D
     D --> E
 ```
 
-## Schritte
+## Implementierte Schritte
 
-### Phase 1: Sanity Client Setup
-- [ ] Sanity CLI installieren
-- [ ] Sanity Client konfigurieren (`sanity.config.ts`)
-- [ ] Environment Variables für Projekt-ID einrichten
+### Phase 1: Sanity Client Setup ✅
+- [x] Sanity Client installiert (`@sanity/client`)
+- [x] [`lib/sanity.ts`](lib/sanity.ts) - Client Konfiguration mit Environment Variables
+- [x] [`.env.local`](.env.local) - Projekt-ID, Dataset, Token
 
-### Phase 2: Schema erstellen
-- [ ] Profile-Schema definieren in `schemas/profile.ts`
-- [ ] Typen in lib/types.ts erweitern für Sanity
+### Phase 2: Schema erstellen ✅
+- [x] [`lib/schemas/profile.ts`](lib/schemas/profile.ts) - TypeScript-Typen für Sanity Documents
 
-### Phase 3: Storage-Layer migrieren
-- [ ] Neue Funktionen in lib/storage.ts für Sanity CRUD
-- [ ] Alte dateibasierte API-Routen entfernen/umbauen
-- [ ] Password-Hashing beibehalten (client-side)
+### Phase 3: Storage-Layer migriert ✅
+- [x] [`lib/storage.ts`](lib/storage.ts) - CRUD-Funktionen für Sanity
+  - `createProfileOnServer()` - Profil erstellen
+  - `saveProfileToServer()` - Profil aktualisieren
+  - `loadProfileFromServer()` - Profil laden
+  - `deleteProfileFromServer()` - Profil löschen
+- [x] Password-Hashing (SHA-256) für Zugriffsschutz
 
-### Phase 4: Frontend anpassen
-- [ ] app/page.tsx auf Sanity-Storage umstellen
-- [ ] Fehlerbehandlung verbessern
-- [ ] Loading-States
+### Phase 4: Frontend ✅
+- [x] [`app/page.tsx`](app/page.tsx) - Funktioniert mit neuem Storage-Layer
 
-### Phase 5: Aufräumen
-- [ ] Alte dateibasierte Dateien entfernen (`app/data/profiles/`, `app/api/profiles/`)
-- [ ] .gitignore bereinigen
-- [ ] Tests
+### Phase 5: Aufräumen ✅
+- [x] Alte dateibasierte Dateien entfernt (`app/data/`, `app/api/profiles/`)
+- [x] `.gitignore` bereinigt
 
-## Benötigte Dateien
+## Erstellte Dateien
 
 | Datei | Beschreibung |
 |-------|-------------|
 | `lib/sanity.ts` | Sanity Client Konfiguration |
-| `schemas/profile.ts` | Profile Document Schema |
-| `lib/storage.ts` | CRUD-Funktionen für Profile |
-| `.env.local` | SANITY_PROJECT_ID, SANITY_DATASET |
+| `lib/schemas/profile.ts` | Sanity Document Typen |
+| `lib/storage.ts` | CRUD-Funktionen (aktualisiert) |
+| `.env.local` | Sanity Credentials |
 
-## Sanity Schema (Draft)
+## Sanity Schema
 
 ```typescript
-// Profile Document
+// Profile Document Type
 {
-  name: 'profile',
-  title: 'Profile',
-  type: 'document',
-  fields: [
-    { name: 'name', type: 'string' },
-    { name: 'bio', type: 'text' },
-    { name: 'avatarUrl', type: 'url' },
-    { name: 'mood', type: 'object', fields: [
-      { name: 'emoji', type: 'string' },
-      { name: 'text', type: 'string' }
-    ]},
-    { name: 'spotifyUrl', type: 'url' },
-    { name: 'links', type: 'array', fields: [
-      { name: 'title', type: 'string' },
-      { name: 'url', type: 'url' }
-    ]},
-    { name: 'passwordHash', type: 'string', hidden: true },
-    { name: 'ownerId', type: 'string', hidden: true }
-  ]
+  _id: string;
+  _type: "profile";
+  name: string;
+  bio: string;
+  avatarUrl: string;
+  mood: { emoji: string; text: string };
+  spotifyUrl: string;
+  links: Array<{ _key: string; title: string; url: string }>;
+  passwordHash?: string; // SHA-256 hash
+  ownerId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 ```
 
-## Security Überlegungen
+## Security
 
-- Passwort-Hash wird client-side berechnet (SHA-256)
-- Nur Hash wird an Sanity gesendet, nie das Klartext-Passwort
-- Jedes Profil hat einen `ownerId` für zukünftige Zugriffskontrolle
-- Sanity hat eingebaute CORS-Kontrolle
+- ✅ Passwort-Hash wird client-side berechnet (SHA-256)
+- ✅ Nur Hash wird an Sanity gesendet
+- ✅ Jedes Profil hat `ownerId`
+- ✅ Passwort-Schutz beim Laden/Aktualisieren

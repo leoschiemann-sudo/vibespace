@@ -40,6 +40,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Profile data (sensitive user information)
-app/data/profiles/*.json
-!app/data/profiles/.gitkeep
+# Sanity (keep local .env out of git)
+.env.local
