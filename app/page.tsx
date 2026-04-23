@@ -9,9 +9,10 @@ import {
 import { EditorForm } from "@/components/EditorForm";
 import { ProfilePreview } from "@/components/ProfilePreview";
 import { ShareButton } from "@/components/ShareButton";
+import { EditorPasswordGate } from "@/components/EditorPasswordGate";
 import { Smartphone, Edit3, Lock, Unlock } from "lucide-react";
 
-export default function HomePage() {
+function EditorContent() {
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE_DATA);
   const [showPreview, setShowPreview] = useState(false);
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -201,5 +202,13 @@ export default function HomePage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <EditorPasswordGate>
+      <EditorContent />
+    </EditorPasswordGate>
   );
 }
